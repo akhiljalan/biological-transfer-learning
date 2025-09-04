@@ -1,6 +1,6 @@
 >📋  A template README.md for code accompanying a Machine Learning paper
 
-# My Paper Title
+# Metabolic Network Estimation with Transfer Learning
 
 This repository contains implementation code from the paper: 
 ```
@@ -17,8 +17,8 @@ conda env create -f env.yml
 
 ## Evaluation on Test Data 
 
-To generate all experimental results, run the script: 
+To recreate the $n_q = 100$ setting in the paper's metabolic transfer experiments, run: 
 
 ```eval
-python ell2_run_all.py
+python metabolic_network_estimation.py
 ```

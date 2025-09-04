@@ -1,13 +1,12 @@
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 import pandas as pd
-import networkx as nx
 import scipy
 import os
-from itertools import product
-from datetime import datetime
+
+# Suppress deprecation warnings
 import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning) 
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 # Custom imports
 from graph_estimation import graphon_families as gf
@@ -77,14 +76,14 @@ def metabolic_network_estimator(source_df, target_df, nq_val):
 
     # Grab the numeric entries of each dataframe, truncate to [0,1], and cast to numpy array. 
     source_mat_full = truncate_sparse_matrix(
-        scipy.sparse.csr_matrix(source_df.iloc[:, :-1])).toarray()
+        scipy.sparse.csr_matrix(source_df.iloc[:, :-1]))
     target_mat_full = truncate_sparse_matrix(
-        scipy.sparse.csr_matrix(target_df.iloc[:, :-1])).toarray()
+        scipy.sparse.csr_matrix(target_df.iloc[:, :-1]))
 
     # Generate {0,1}-valued sample of source network (Bernoulli sampling). 
     source_mat_sample = get_boolean_sample(source_mat_full)
     # Get row-wise L2 distances. 
-    distance_estimates_source = ge.slice_distances_ell2_est(source_mat_sample)
+    distance_estimates_source = ge.slice_distances_ell2_est(source_mat_sample.toarray())
 
     # Prepare Boolean {0,1} sample of target network. 
     target_matrix_subset = truncate_sparse_matrix(
@@ -109,8 +108,36 @@ def metabolic_network_estimator(source_df, target_df, nq_val):
 
     return target_matrix_estimate
 
+
 def main(): 
+    print('Running metabolic transfer experiment...')
+    print('Loading metabolic networks from BiGG data...')
     metabolic_networks_df_dict = load_metabolic_networks()
+    print('-' * 50)
+    # Run transfer experiment with pair of bacteria 
+    source_species = 'iWFL_1372' # E coli W
+    target_species = 'iJN1463' # P putida 
+    target_estimated = metabolic_network_estimator(metabolic_networks_df_dict[source_species], 
+        metabolic_networks_df_dict[target_species], nq_val = 100)
+    # Load ground truth and clip to [0,1] for consistency 
+    target_ground_truth = np.clip(
+        np.array(metabolic_networks_df_dict[target_species].iloc[:, :-1]), 0, 1)
+    # Compute the normalized Frobenius error (mean-squared error)
+    frob_error = ge.frob_error(target_ground_truth, target_estimated)
+    num_nodes_total = len(metabolic_networks_df_dict[source_species])
+    print(f'For source={source_species}, target={target_species}, '\
+        + f'np={num_nodes_total}, nq=100, error is {frob_error}')
+    print('-' * 50)
+    # Run transfer experiment with human to bacteria
+    source_species = 'Recon3D'
+    target_species = 'iJN1463'
+    target_estimated_2 = metabolic_network_estimator(metabolic_networks_df_dict[source_species], 
+        metabolic_networks_df_dict[target_species], nq_val = 100)
+    # Load ground truth and clip to [0,1] for consistency 
+    # Compute the normalized Frobenius error (mean-squared error)
+    frob_error = ge.frob_error(target_ground_truth, target_estimated_2)
+    print(f'For source={source_species}, target={target_species}, '\
+        + f'np={num_nodes_total}, nq=100, error is {frob_error}')
 
 
 if __name__ == "__main__": 
