@@ -7,12 +7,13 @@ Jalan, Akhil, et al. "Transfer learning for latent variable network models." Adv
 
 ## Requirements
 
-To install requirements: create a new environment with Python=3.10.9 and the dependencies in `env.yml`.
+To install requirements: create a new environment with Python=3.10.9 and the dependencies in `requirements.txt`.
 
-If you are a Conda user, run: 
 
 ```setup
-conda env create -f env.yml
+python3.10 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ## Evaluation on Test Data 
