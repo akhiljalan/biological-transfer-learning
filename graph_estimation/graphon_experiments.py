@@ -4,6 +4,9 @@ import scipy.sparse as sp
 from . import graphon_families as gf 
 from . import graphon_est 
 from . import utils
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning) 
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 def run_sbm_test(n_vals, num_trials, np_power = 1.5, random_seed=42):

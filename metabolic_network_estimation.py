@@ -3,11 +3,6 @@ import pandas as pd
 import scipy
 import os
 
-# Suppress deprecation warnings
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning) 
-warnings.filterwarnings("ignore", category=FutureWarning)
-
 # Custom imports
 from graph_estimation import graphon_families as gf
 from graph_estimation import graphon_est_ell2 as ge 

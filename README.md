@@ -1,5 +1,3 @@
->📋  A template README.md for code accompanying a Machine Learning paper
-
 # Metabolic Network Estimation with Transfer Learning
 
 This repository contains implementation code from the paper: 
@@ -10,6 +8,8 @@ Jalan, Akhil, et al. "Transfer learning for latent variable network models." Adv
 ## Requirements
 
 To install requirements: create a new environment with Python=3.10.9 and the dependencies in `env.yml`.
+
+If you are a Conda user, run: 
 
 ```setup
 conda env create -f env.yml
