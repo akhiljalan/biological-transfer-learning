@@ -58,74 +58,60 @@ def load_metabolic_networks():
         # print(df_filtered.shape)
     return shared_df_dict
 
-def iter_exp_metabolic_all_methods(P_df, Q_df, n_vals, 
-                                   p_flip_vals,
-                                np_fixed, 
-                                num_trials, seed=11):
-    np.random.seed(seed)
-    df_col_names = ['np', 'nq', 'our_algo', 'spectral_algo',
-       'bitflip_algo', 'p_flip']
-    results = pd.DataFrame(
-        columns = df_col_names
+def metabolic_network_estimator(source_df, target_df, nq_val): 
+    '''
+    Creates a submatrix of the target network adjacency matrix, with 
+    nq_val nodes shown, and the rest masked. 
+
+    Uses transfer learning to estimate the full target network adjacency matrix. 
+
+    source_df: Dataframe for source network (e.g. species A)
+    target_df: Dataframe for target network (e.g. species B)
+    nq_val: Number of nodes in the submatrix that are seen. 
+
+    Returns: Adjancency matrix of estimated target network. 
+    '''
+    np_val = len(source_df)
+    nodes_subset = np.random.choice(np_val, size=nq_val, replace=False)
+
+
+    # Grab the numeric entries of each dataframe, truncate to [0,1], and cast to numpy array. 
+    source_mat_full = truncate_sparse_matrix(
+        scipy.sparse.csr_matrix(source_df.iloc[:, :-1])).toarray()
+    target_mat_full = truncate_sparse_matrix(
+        scipy.sparse.csr_matrix(target_df.iloc[:, :-1])).toarray()
+
+    # Generate {0,1}-valued sample of source network (Bernoulli sampling). 
+    source_mat_sample = get_boolean_sample(source_mat_full)
+    # Get row-wise L2 distances. 
+    distance_estimates_source = ge.slice_distances_ell2_est(source_mat_sample)
+
+    # Prepare Boolean {0,1} sample of target network. 
+    target_matrix_subset = truncate_sparse_matrix(
+        target_mat_full[:, nodes_subset][nodes_subset].tocsr()
     )
-    P_full = scipy.sparse.csr_matrix(P_df.iloc[:, :-1])
-    Q_full = scipy.sparse.csr_matrix(Q_df.iloc[:, :-1])
-    
-    Q_full_np = truncate_sparse_matrix(Q_full.copy()).toarray()
-    P_full_np = truncate_sparse_matrix(P_full.copy()).toarray()
+    target_matrix_subset_sample = get_boolean_sample(target_matrix_subset)
+    distance_estimates_subset = distance_estimates_source[:, nodes_subset].copy()
 
-    P_full_sample = get_boolean_sample(truncate_sparse_matrix(
-        P_full)
-    ).toarray()
-    d_est_p = ge.slice_distances_ell2_est(P_full_sample)
-    
-    for nq in n_vals: 
-        h_quantile = 50 * np.sqrt(np.log(nq) / nq)
-        n_p = len(P_df)
-        n_q = nq
-        for _ in range(num_trials): 
-            subset_context = np.random.choice(n_p, size=n_q, replace=False)
-            subset_indices = subset_context
-            Q_subset = truncate_sparse_matrix(
-                Q_full[:, subset_context][subset_context].tocsr()
-            )
-            Q_subset_sample = get_boolean_sample(Q_subset).toarray()
-            
-            d_est_subset = d_est_p[:, subset_indices].copy()
-            # print(d_est_subset.shape)
-            mask = ge.bottom_percentile_mask(d_est_subset, 
-                                            h_quantile).astype(np.float32)
-            row_sums = np.sum(mask, axis=1)
-            row_norms = np.divide(1.0, row_sums)
-            mask_normalized = np.diag(row_norms) @ mask
-            # print(mask_normalized.shape)
-            # print(Q_subset_sample.shape)
-            
-            q_hat_ours = mask_normalized @ Q_subset_sample @ mask_normalized.T
+    # Set mask matrix 
+    quantile_cutoff = 50 * np.sqrt(np.log(nq_val) / nq_val)
+    # Mask all entries in each row below the quantile cutoff 
+    # (i.e. retain only the neighbors that are closest in L2 distance)
+    mask = ge.bottom_percentile_mask(distance_estimates_subset, quantile_cutoff).astype(np.float32)
 
-            qhat_ours_err = ge.frob_error(q_hat_ours, Q_full_np)
+    # Construct (np x nq) scaling matrix 
+    row_sums = np.sum(mask, axis=1)
+    row_norms = np.divide(1.0, row_sums)
+    mask_normalized = np.diag(row_norms) @ mask
 
-            q_hat_eigvec = ge.eigenvec_feature_transfer_baseline(P_full_sample, Q_subset_sample, 
-                                                                 subset_indices)
-            qhat_eigvec_err = ge.frob_error(q_hat_eigvec, Q_full_np)
-            
+    # Estimate target network adjacency matrix. 
+    target_matrix_estimate = mask_normalized @ target_matrix_subset_sample @ mask_normalized.T
 
-            for p_flip in p_flip_vals: 
-                qhat_bitflip, _, _, _ = ge.get_usvt_bitflipped_estimator(Q_full_np, 
-                                                                        subset_indices, p_flip = p_flip)
-                qhat_bitflip_err = ge.frob_error(qhat_bitflip, Q_full_np)
-                # df_col_names = ['alpha', 'beta', 'np', 'nq', 'our_algo', 'spectral_algo',
-                #     'bitflip_algo', 'p_flip']
-                results.loc[len(results)] = [
-                    np_fixed, nq, qhat_ours_err, qhat_eigvec_err, 
-                    qhat_bitflip_err, p_flip
-                ]
-        print(f'{nq=}, {p_flip=}')
-    return results 
+    return target_matrix_estimate
 
 def main(): 
     metabolic_networks_df_dict = load_metabolic_networks()
-    
+
 
 if __name__ == "__main__": 
     main() 
